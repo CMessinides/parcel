@@ -14,7 +14,7 @@ export default new Transformer({
   // },
 
   async loadConfig(config) {
-    loadConfig(config);
+    await loadConfig(config);
   },
 
   canReuseAST({ast}) {

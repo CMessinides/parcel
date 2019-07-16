@@ -5,7 +5,7 @@ const {bundle, removeDistDirectory, run, ncp} = require('@parcel/test-utils');
 const {mkdirp, rimraf} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 
-describe('babel', function() {
+describe.only('babel', function() {
   afterEach(async () => {
     await removeDistDirectory();
   });
@@ -236,7 +236,7 @@ describe('babel', function() {
     assert(file.includes('h("div"'));
   });
 
-  it('should strip away flow types of node modules', async function() {
+  it.only('should strip away flow types of node modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-strip-flow-types/index.js')
     );

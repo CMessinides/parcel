@@ -318,9 +318,7 @@ class Pipeline {
       config: configs.get(name)?.result,
       transformer: transformers[i]
     }));
-    console.log('TRANSFORMERS', this.transformers);
     this.configs = configs;
-    console.log('CONFIGS', this.configs);
     this.options = options;
     let parcelConfig = nullthrows(this.configs.get('parcel'));
     parcelConfig = nullthrows(parcelConfig.result);
@@ -382,14 +380,14 @@ class Pipeline {
     // Load config for the transformer.
     let config = preloadedConfig;
     if (transformer.getConfig) {
+      // TODO: deprecate getConfig
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
         options: this.options,
         resolve
       });
     }
-
-    console.log('CONFIG', config);
+    console.log('CONFIG', JSON.stringify(config));
 
     // If an ast exists on the asset, but we cannot reuse it,
     // use the previous transform to generate code that we can re-parse.

@@ -17,7 +17,7 @@
     "browser": {
       "engines": {
         "browsers": [
-          "last 1 Chrome version"
+          "> 1%"
         ]
       }
     }

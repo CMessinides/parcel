@@ -150,8 +150,8 @@ export default class Config {
     return this.pkg;
   }
 
+  // TODO: pick a better name?
   async isSource() {
-    // TODO: pick a better name?
     let pkg = await this.getPackage();
     return (
       !!(

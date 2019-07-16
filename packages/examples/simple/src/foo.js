@@ -1,3 +1,3 @@
-export default function() {
-  return 'hello!';
-}
+const foo = () => 'hello';
+
+export default foo;

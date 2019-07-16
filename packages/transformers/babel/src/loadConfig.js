@@ -9,21 +9,26 @@ type BabelConfig = {
   presets?: Array<any>
 };
 
-export default function loadConfig(config) {
+export default async function loadConfig(config) {
+  if (!(await config.isSource())) {
+    return null;
+  }
+
   let partialConfig = loadPartialConfig({filename: config.searchPath});
-  if (partialConfig.hasFilesystemConfig()) {
+  if (partialConfig && partialConfig.hasFilesystemConfig()) {
     // TODO: implement custom babel config support
   } else {
-    buildDefaultBabelConfig(config);
+    await buildDefaultBabelConfig(config);
   }
 }
 
 async function buildDefaultBabelConfig(config) {
   let babelOptions = await getEnvOptions(config);
-  // let jsxConfig = await getJSXOptions(config);
-  // babelOptions = mergeConfigs(babelOptions, jsxConfig);
-  // let flowConfig = await getFlowOptions(config);
-  // babelOptions = mergeConfigs(babelOptions, flowConfig);
+  let jsxConfig = await getJSXOptions(config);
+  babelOptions = mergeConfigs(babelOptions, jsxConfig);
+  let flowConfig = await getFlowOptions(config);
+  babelOptions = mergeConfigs(babelOptions, flowConfig);
+  console.log('BABEL OPTIONS', babelOptions);
 
   config.setResult(babelOptions);
 }

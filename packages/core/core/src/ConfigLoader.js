@@ -70,7 +70,7 @@ export default class ConfigLoader {
     let config = new Config({searchPath: filePath, env, options: this.options});
     plugin = await loadPlugin(nullthrows(plugin), parcelConfigPath);
 
-    plugin.loadConfig && plugin.loadConfig(config);
+    plugin.loadConfig && (await plugin.loadConfig(config));
 
     return config;
   }

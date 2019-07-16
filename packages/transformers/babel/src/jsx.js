@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset, PackageJSON} from '@parcel/types';
+import type {ConfigClass} from '@parcel/types';
 import path from 'path';
 
 const JSX_EXTENSIONS = {
@@ -18,13 +18,9 @@ const JSX_PRAGMA = {
  * Generates a babel config for JSX. Attempts to detect react or react-like libraries
  * and changes the pragma accordingly.
  */
-export default async function getJSXConfig({searchPath, pkg, isSourceModule}) {
-  // Don't enable JSX in node_modules
-  if (!isSourceModule) {
-    return null;
-  }
-
+export default async function getJSXConfig(config: ConfigClass) {
   // Find a dependency that we can map to a JSX pragma
+  let pkg = await config.getPackage();
   let pragma = null;
   for (let dep in JSX_PRAGMA) {
     if (
@@ -37,7 +33,7 @@ export default async function getJSXConfig({searchPath, pkg, isSourceModule}) {
     }
   }
 
-  if (pragma || JSX_EXTENSIONS[path.extname(searchPath)]) {
+  if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
     return {
       plugins: [[require('@babel/plugin-transform-react-jsx'), {pragma}]]
     };
