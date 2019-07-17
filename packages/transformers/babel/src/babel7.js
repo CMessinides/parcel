@@ -4,23 +4,19 @@ import localRequire from '@parcel/local-require';
 
 export default async function babel7(
   asset: MutableAsset,
-  config: any
+  options: any
 ): Promise<?AST> {
-  // TODO: reimplement
-  // // If this is an internally generated config, use our internal @babel/core,
-  // // otherwise require a local version from the package we're compiling.
-  // let babel = options.internal
-  //   ? require('@babel/core')
-  //   : await localRequire('@babel/core', asset.filePath);
+  let config = options.config;
 
-  // let pkg = await asset.getPackage();
-
-  let babel = require('@babel/core');
+  // If this is an internally generated config, use our internal @babel/core,
+  // otherwise require a local version from the package we're compiling.
+  let babel = options.internal
+    ? require('@babel/core')
+    : await localRequire('@babel/core', asset.filePath);
 
   config.code = false;
   config.ast = true;
   config.filename = asset.filePath;
-  // config.cwd = pkg ? pkg.pkgdir : asset.options.rootDir;
   config.babelrc = false;
   config.configFile = false;
   config.parserOpts = Object.assign({}, config.parserOpts, {

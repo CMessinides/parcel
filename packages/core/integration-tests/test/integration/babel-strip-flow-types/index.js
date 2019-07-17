@@ -1,5 +1,5 @@
-import flowModule from './flow-typed-file';
+const flowModule = require('./flow-typed-file');
 
-export default function() {
+module.exports = function() {
   return flowModule();
 }

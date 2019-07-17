@@ -1,5 +1,5 @@
 // @flow
-import {loadPartialConfig} from '@babel/core';
+import {loadPartialConfig, createConfigItem} from '@babel/core';
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
 import getFlowOptions from './flow';
@@ -9,14 +9,21 @@ type BabelConfig = {
   presets?: Array<any>
 };
 
-export default async function loadConfig(config) {
-  if (!(await config.isSource())) {
-    return null;
-  }
-
+export async function load(config) {
   let partialConfig = loadPartialConfig({filename: config.searchPath});
   if (partialConfig && partialConfig.hasFilesystemConfig()) {
-    // TODO: implement custom babel config support
+    config.setResult({
+      internal: false,
+      config: partialConfig.options
+    });
+
+    if (canBeCached(partialConfig)) {
+      config.needsToBeRehydrated = true;
+    } else {
+      config.setResultHash(Date.now());
+      config.needsToBeReloaded = true;
+    }
+    // // TODO: invalidate on startup
   } else {
     await buildDefaultBabelConfig(config);
   }
@@ -28,9 +35,11 @@ async function buildDefaultBabelConfig(config) {
   babelOptions = mergeConfigs(babelOptions, jsxConfig);
   let flowConfig = await getFlowOptions(config);
   babelOptions = mergeConfigs(babelOptions, flowConfig);
-  console.log('BABEL OPTIONS', babelOptions);
 
-  config.setResult(babelOptions);
+  config.setResult({
+    internal: true,
+    config: babelOptions
+  });
 }
 
 function mergeConfigs(result, config?: null | BabelConfig) {
@@ -51,4 +60,29 @@ function mergeConfigs(result, config?: null | BabelConfig) {
   }
 
   return result;
+}
+
+function canBeCached(partialConfig) {
+  for (let configItem of partialConfig.options.presets) {
+    if (!configItem.file) {
+      return false;
+    }
+  }
+
+  for (let configItem of partialConfig.options.plugins) {
+    if (!configItem.file) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function rehydrate(config) {
+  config.config.options.presets = config.config.options.presets.map(
+    configItem => createConfigItem(require(configItem.file.resolved).default)
+  );
+  config.config.options.plugins = config.config.options.plugins.map(
+    configItem => createConfigItem(require(configItem.file.resolved).default)
+  );
 }

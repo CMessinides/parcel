@@ -1,6 +1,6 @@
 // @flow
 import type { OptionsType } from 'Types';
 
-export default function() {
+module.exports = function() {
   return 'hello world'
 }

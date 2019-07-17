@@ -19,6 +19,10 @@ const JSX_PRAGMA = {
  * and changes the pragma accordingly.
  */
 export default async function getJSXConfig(config: ConfigClass) {
+  if (!(await config.isSource())) {
+    return null;
+  }
+
   // Find a dependency that we can map to a JSX pragma
   let pkg = await config.getPackage();
   let pragma = null;

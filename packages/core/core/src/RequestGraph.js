@@ -57,11 +57,11 @@ const nodeFromAssetRequest = (assetRequest: AssetRequest) => ({
 });
 
 const nodeFromConfigRequest = (configRequest: ConfigRequest) => ({
-  id: md5FromString(
-    `${configRequest.filePath}:${
-      configRequest.plugin != null ? configRequest.plugin : 'parcel'
-    }`
-  ),
+  id: md5FromObject({
+    filePath: configRequest.filePath,
+    plugin: configRequest.plugin,
+    env: configRequest.env
+  }),
   type: 'config_request',
   value: configRequest
 });

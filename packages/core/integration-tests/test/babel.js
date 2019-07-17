@@ -5,7 +5,7 @@ const {bundle, removeDistDirectory, run, ncp} = require('@parcel/test-utils');
 const {mkdirp, rimraf} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 
-describe.only('babel', function() {
+describe('babel', function() {
   afterEach(async () => {
     await removeDistDirectory();
   });
@@ -60,11 +60,11 @@ describe.only('babel', function() {
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
-    await bundle(path.join(__dirname, '/integration/babel/index.js'));
+    await bundle(path.join(__dirname, '/integration/babel-custom/index.js'));
 
     let file = await fs.readFile('dist/index.js', 'utf8');
-    assert(!file.includes('function Foo'));
-    assert(!file.includes('function Bar'));
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('hello there'));
   });
 
   it('should compile with babel with default engines if no config', async function() {
@@ -236,7 +236,7 @@ describe.only('babel', function() {
     assert(file.includes('h("div"'));
   });
 
-  it.only('should strip away flow types of node modules', async function() {
+  it('should strip away flow types of node modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/babel-strip-flow-types/index.js')
     );

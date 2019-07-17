@@ -76,7 +76,8 @@ async function loadBrowserslist(config) {
     }
   );
 
-  if (config) {
+  if (browserslistConfig) {
+    console.log('CONFIG', config);
     return browserslist.parseConfig(browserslistConfig);
   }
 }

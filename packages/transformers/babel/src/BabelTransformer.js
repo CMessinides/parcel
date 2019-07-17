@@ -6,7 +6,7 @@ import semver from 'semver';
 import babel7 from './babel7';
 //import getBabelConfig from './config';
 import {relativeUrl} from '@parcel/utils';
-import loadConfig from './loadConfig';
+import {load, rehydrate} from './loadConfig';
 
 export default new Transformer({
   // async getConfig({asset}) {
@@ -14,7 +14,11 @@ export default new Transformer({
   // },
 
   async loadConfig(config) {
-    await loadConfig(config);
+    await load(config);
+  },
+
+  rehydrateConfig(config) {
+    rehydrate(config);
   },
 
   canReuseAST({ast}) {
@@ -22,7 +26,8 @@ export default new Transformer({
   },
 
   async transform({asset, config}) {
-    if (config) {
+    // TODO: eww
+    if (config?.config) {
       asset.ast = await babel7(asset, config);
     }
 

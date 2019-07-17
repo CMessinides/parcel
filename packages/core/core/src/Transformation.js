@@ -247,6 +247,13 @@ export default class Transformation {
           moduleName,
           parcelConfig.resolvedPath
         );
+
+        if (config.needsToBeRehydrated) {
+          thirdPartyConfig = await plugin.rehydrateConfig(thirdPartyConfig);
+        } else if (config.needsToBeReloaded) {
+          // TODO: implement reloading
+        }
+
         configs.set(moduleName, thirdPartyConfig);
       }
     }
@@ -387,7 +394,6 @@ class Pipeline {
         resolve
       });
     }
-    console.log('CONFIG', JSON.stringify(config));
 
     // If an ast exists on the asset, but we cannot reuse it,
     // use the previous transform to generate code that we can re-parse.
