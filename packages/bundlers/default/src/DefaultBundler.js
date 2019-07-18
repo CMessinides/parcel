@@ -40,7 +40,6 @@ export default new Bundler({
               // TODO: is this right?
               return;
             }
-
             let bundleGroup: BundleGroup = {
               dependency: dep,
               target: dep.target || (context && context.bundleGroup.target),

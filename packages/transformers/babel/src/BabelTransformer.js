@@ -26,7 +26,7 @@ export default new Transformer({
   },
 
   async transform({asset, config}) {
-    // TODO: eww
+    // TODO: come up with a better name
     if (config?.config) {
       asset.ast = await babel7(asset, config);
     }

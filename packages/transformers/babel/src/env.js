@@ -73,7 +73,7 @@ function getEnvOptions(engines: Engines, useBuiltIns = false) {
     targets,
     modules: false,
     useBuiltIns: useBuiltIns ? 'entry' : false,
-    corejs: '3.0.0',
+    corejs: 3,
     shippedProposals: true
   };
 }

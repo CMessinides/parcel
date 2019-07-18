@@ -1,13 +1,18 @@
 // @flow
+import path from 'path';
+
 import {loadPartialConfig, createConfigItem} from '@babel/core';
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
 import getFlowOptions from './flow';
+import getTypescriptOptions from './typescript';
 
 type BabelConfig = {
   plugins?: Array<any>,
   presets?: Array<any>
 };
+
+const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 
 export async function load(config) {
   let partialConfig = loadPartialConfig({filename: config.searchPath});
@@ -30,11 +35,15 @@ export async function load(config) {
 }
 
 async function buildDefaultBabelConfig(config) {
-  let babelOptions = await getEnvOptions(config);
-  let jsxConfig = await getJSXOptions(config);
-  babelOptions = mergeConfigs(babelOptions, jsxConfig);
-  let flowConfig = await getFlowOptions(config);
-  babelOptions = mergeConfigs(babelOptions, flowConfig);
+  let babelOptions;
+  if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
+    babelOptions = await getTypescriptOptions(config);
+  } else {
+    babelOptions = await getFlowOptions(config);
+  }
+
+  babelOptions = mergeConfigs(babelOptions, await getEnvOptions(config));
+  babelOptions = mergeConfigs(babelOptions, await getJSXOptions(config));
 
   config.setResult({
     internal: true,
