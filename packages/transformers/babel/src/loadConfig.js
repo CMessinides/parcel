@@ -20,17 +20,23 @@ const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 export async function load(config) {
   let partialConfig = loadPartialConfig({filename: config.searchPath});
   if (partialConfig && partialConfig.hasFilesystemConfig()) {
+    let {babelrc, config: configjs} = partialConfig;
+
+    if (babelrc != null && configjs == null) {
+      config.setResolvedPath(babelrc);
+    }
+
     config.setResult({
       internal: false,
       config: partialConfig.options
     });
 
     if (canBeRehydrated(partialConfig)) {
-      config.needsToBeRehydrated = true;
+      config.shouldRehydrate();
       await definePluginDependencies(config);
     } else {
       config.setResultHash(Date.now());
-      config.needsToBeReloaded = true;
+      config.shouldReload();
       // TODO: invalidate on startup
     }
   } else {
@@ -56,7 +62,7 @@ async function buildDefaultBabelConfig(config) {
     babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
       createConfigItem(plugin, {type: 'plugin', dirname: BABEL_TRANSFORMER_DIR})
     );
-    config.needsToBeRehydrated = true;
+    config.shouldRehydrate();
   }
 
   config.setResult({

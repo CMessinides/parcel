@@ -248,9 +248,9 @@ export default class Transformation {
           parcelConfig.resolvedPath
         );
 
-        if (config.needsToBeRehydrated) {
+        if (config.rehydrate) {
           thirdPartyConfig = await plugin.rehydrateConfig(thirdPartyConfig);
-        } else if (config.needsToBeReloaded) {
+        } else if (config.reload) {
           thirdPartyConfig = await plugin.load(thirdPartyConfig);
         }
 

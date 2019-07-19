@@ -22,7 +22,9 @@ type ConfigOpts = {|
   result?: any,
   includedFiles?: Set<FilePath>,
   watchGlob?: Glob,
-  devDeps?: Map<PackageName, ?string>
+  devDeps?: Map<PackageName, ?string>,
+  rehydrate?: boolean,
+  reload?: boolean
 |};
 
 export default class Config {
@@ -36,6 +38,8 @@ export default class Config {
   watchGlob: ?Glob;
   devDeps: Map<PackageName, ?string>;
   pkg: ?PackageJSON;
+  rehydrate: ?boolean;
+  reload: ?boolean;
 
   constructor({
     searchPath,
@@ -45,7 +49,9 @@ export default class Config {
     result,
     includedFiles,
     watchGlob,
-    devDeps
+    devDeps,
+    rehydrate,
+    reload
   }: ConfigOpts) {
     this.searchPath = searchPath;
     this.env = env;
@@ -55,6 +61,8 @@ export default class Config {
     this.includedFiles = includedFiles || new Set();
     this.watchGlob = watchGlob;
     this.devDeps = devDeps || new Map();
+    this.rehydrate = rehydrate;
+    this.reload = reload;
   }
 
   setResolvedPath(filePath: FilePath) {
@@ -83,6 +91,14 @@ export default class Config {
 
   setWatchGlob(glob: string) {
     this.watchGlob = glob;
+  }
+
+  shouldRehydrate() {
+    this.rehydrate = true;
+  }
+
+  shouldReload() {
+    this.reload = true;
   }
 
   // This will be more useful when we have edge types
