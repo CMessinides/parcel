@@ -280,13 +280,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     invariant(config.devDeps != null);
 
     let depVersionRequestNodes = [];
-    for (let [moduleSpecifier] of config.devDeps) {
+    for (let [moduleSpecifier, version] of config.devDeps) {
       let depVersionRequest = {
         moduleSpecifier,
-        resolveFrom: path.dirname(nullthrows(config.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
+        resolveFrom: config.resolvedPath, // TODO: resolveFrom should be nearest package boundary
+        result: version
       };
       let depVersionRequestNode = nodeFromDepVersionRequest(depVersionRequest);
-      if (!this.hasNode(depVersionRequestNode.id)) {
+      if (!this.hasNode(depVersionRequestNode.id) || version) {
         this.addNode(depVersionRequestNode);
       }
       this.addEdge(configRequestNode.id, depVersionRequestNode.id);
@@ -294,8 +295,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         nullthrows(this.getNode(depVersionRequestNode.id))
       );
 
-      let version = await this.getSubTaskResult(depVersionRequestNode);
-      config.setDevDep(depVersionRequest.moduleSpecifier, version);
+      if (version != null) {
+        let result = await this.getSubTaskResult(depVersionRequestNode);
+        config.setDevDep(depVersionRequest.moduleSpecifier, result);
+      }
     }
     this.replaceNodesConnectedTo(
       configRequestNode,
@@ -336,15 +339,19 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
   async runDepVersionRequest(requestNode: DepVersionRequestNode) {
     let {value: request} = requestNode;
-    let {moduleSpecifier, resolveFrom} = request;
-    let [, resolvedPkg] = await localResolve(
-      `${moduleSpecifier}/package.json`,
-      `${resolveFrom}/index`
-    );
+    let {moduleSpecifier, resolveFrom, result} = request;
 
-    // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
-    let version = nullthrows(resolvedPkg).version;
-    request.result = version;
+    let version = result;
+
+    if (version == null) {
+      let [, resolvedPkg] = await localResolve(
+        `${moduleSpecifier}/package.json`,
+        resolveFrom
+      );
+      // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
+      version = nullthrows(resolvedPkg).version;
+      request.result = version;
+    }
 
     return version;
   }

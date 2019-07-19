@@ -1,7 +1,9 @@
 // @flow
 import path from 'path';
-
 import {loadPartialConfig, createConfigItem} from '@babel/core';
+
+import {loadConfig as loadGenericConfig} from '@parcel/utils';
+
 import getEnvOptions from './env';
 import getJSXOptions from './jsx';
 import getFlowOptions from './flow';
@@ -13,6 +15,7 @@ type BabelConfig = {
 };
 
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
+const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 
 export async function load(config) {
   let partialConfig = loadPartialConfig({filename: config.searchPath});
@@ -22,13 +25,14 @@ export async function load(config) {
       config: partialConfig.options
     });
 
-    if (canBeCached(partialConfig)) {
+    if (canBeRehydrated(partialConfig)) {
       config.needsToBeRehydrated = true;
+      await definePluginDependencies(config);
     } else {
       config.setResultHash(Date.now());
       config.needsToBeReloaded = true;
+      // TODO: invalidate on startup
     }
-    // // TODO: invalidate on startup
   } else {
     await buildDefaultBabelConfig(config);
   }
@@ -45,10 +49,21 @@ async function buildDefaultBabelConfig(config) {
   babelOptions = mergeConfigs(babelOptions, await getEnvOptions(config));
   babelOptions = mergeConfigs(babelOptions, await getJSXOptions(config));
 
+  if (babelOptions != null) {
+    babelOptions.presets = (babelOptions.presets || []).map(preset =>
+      createConfigItem(preset, {type: 'preset', dirname: BABEL_TRANSFORMER_DIR})
+    );
+    babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
+      createConfigItem(plugin, {type: 'plugin', dirname: BABEL_TRANSFORMER_DIR})
+    );
+    config.needsToBeRehydrated = true;
+  }
+
   config.setResult({
     internal: true,
     config: babelOptions
   });
+  await definePluginDependencies(config);
 }
 
 function mergeConfigs(result, config?: null | BabelConfig) {
@@ -71,7 +86,7 @@ function mergeConfigs(result, config?: null | BabelConfig) {
   return result;
 }
 
-function canBeCached(partialConfig) {
+function canBeRehydrated(partialConfig) {
   for (let configItem of partialConfig.options.presets) {
     if (!configItem.file) {
       return false;
@@ -85,6 +100,25 @@ function canBeCached(partialConfig) {
   }
 
   return true;
+}
+
+async function definePluginDependencies(config) {
+  let babelConfig = config.result.config;
+  if (babelConfig == null) {
+    return;
+  }
+
+  let configItems = [...babelConfig.presets, ...babelConfig.plugins];
+  await Promise.all(
+    configItems.map(async configItem => {
+      let {config: pkg} = await loadGenericConfig(
+        configItem.file.resolved,
+        ['package.json'],
+        {parse: true}
+      );
+      config.setDevDep(pkg.name, pkg.version);
+    })
+  );
 }
 
 export function rehydrate(config) {

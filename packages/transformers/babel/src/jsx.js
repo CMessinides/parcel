@@ -39,7 +39,7 @@ export default async function getJSXConfig(config: ConfigClass) {
 
   if (pragma || JSX_EXTENSIONS[path.extname(config.searchPath)]) {
     return {
-      plugins: [[require('@babel/plugin-transform-react-jsx'), {pragma}]]
+      plugins: [['@babel/plugin-transform-react-jsx', {pragma}]]
     };
   }
 }

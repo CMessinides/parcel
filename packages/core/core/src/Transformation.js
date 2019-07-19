@@ -251,7 +251,7 @@ export default class Transformation {
         if (config.needsToBeRehydrated) {
           thirdPartyConfig = await plugin.rehydrateConfig(thirdPartyConfig);
         } else if (config.needsToBeReloaded) {
-          // TODO: implement reloading
+          thirdPartyConfig = await plugin.load(thirdPartyConfig);
         }
 
         configs.set(moduleName, thirdPartyConfig);
