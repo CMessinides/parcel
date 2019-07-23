@@ -10,7 +10,11 @@ export default new Packager({
       assets.push(asset);
     });
 
-    assert.equal(assets.length, 1, 'Raw bundles must only contain one asset');
+    assert.equal(
+      assets.length,
+      1,
+      `Raw bundles must only contain one asset. Had ${assets.length}`
+    );
     return {contents: assets[0].getStream()};
   }
 });

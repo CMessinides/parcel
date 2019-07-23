@@ -6,8 +6,6 @@ import nullthrows from 'nullthrows';
 import type {
   Dependency as IDependency,
   GraphVisitor,
-  Symbol,
-  SymbolResolution,
   Target
 } from '@parcel/types';
 import {md5FromObject} from '@parcel/utils';
@@ -15,7 +13,7 @@ import {md5FromObject} from '@parcel/utils';
 import type Asset from './Asset';
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
-import type {AssetGraphNode, AssetGroup, DependencyNode, NodeId} from './types';
+import type {AssetGraphNode, AssetGroup, DependencyNode} from './types';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
@@ -32,7 +30,7 @@ type InitOpts = {|
 const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
   new Map([...map].map(([key, val]) => [val, key]));
 
-const nodeFromDep = (dep: Dependency): DependencyNode => ({
+export const nodeFromDep = (dep: Dependency): DependencyNode => ({
   id: dep.id,
   type: 'dependency',
   value: dep
@@ -116,10 +114,14 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     if (dependency.isWeak && assetGroup.sideEffects === false) {
       let assets = this.getNodesConnectedTo(depNode);
       let symbols = invertMap(dependency.symbols);
+      let firstAsset = assets[0];
       invariant(
-        assets[0].type === 'asset' || assets[0].type === 'asset_reference'
+        firstAsset.type === 'asset' || firstAsset.type === 'asset_reference'
       );
-      let resolvedAsset = assets[0].value;
+      let resolvedAsset =
+        firstAsset.type === 'asset_reference'
+          ? firstAsset.value.asset
+          : firstAsset.value;
       let deps = this.getIncomingDependencies(resolvedAsset);
       defer = deps.every(
         d =>
@@ -214,16 +216,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     );
   }
 
-  getTotalSize(asset?: ?Asset): number {
-    let size = 0;
-    let assetNode = asset ? this.getNode(asset.id) : null;
-    this.traverseAssets(asset => {
-      size += asset.stats.size;
-    }, assetNode);
-
-    return size;
-  }
-
   getEntryAssets(): Array<Asset> {
     let entries = [];
     this.traverseAssets((asset, ctx, traversal) => {
@@ -232,54 +224,5 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     });
 
     return entries;
-  }
-
-  removeAsset(asset: Asset): ?NodeId {
-    let assetNode = this.getNode(asset.id);
-    if (!assetNode) {
-      return;
-    }
-
-    let referenceId = 'asset_reference:' + assetNode.id;
-    this.replaceNode(assetNode, {
-      type: 'asset_reference',
-      id: referenceId,
-      value: asset
-    });
-
-    return referenceId;
-  }
-
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution {
-    if (symbol === '*') {
-      return {asset, exportSymbol: '*', symbol: '*'};
-    }
-
-    let identifier = asset.symbols.get(symbol);
-
-    let deps = this.getDependencies(asset).reverse();
-    for (let dep of deps) {
-      // If this is a re-export, find the original module.
-      let symbolLookup = new Map(
-        [...dep.symbols].map(([key, val]) => [val, key])
-      );
-      let depSymbol = symbolLookup.get(identifier);
-      if (depSymbol != null) {
-        let resolved = nullthrows(this.getDependencyResolution(dep));
-        return this.resolveSymbol(resolved, depSymbol);
-      }
-
-      // If this module exports wildcards, resolve the original module.
-      // Default exports are excluded from wildcard exports.
-      if (dep.symbols.get('*') === '*' && symbol !== 'default') {
-        let resolved = nullthrows(this.getDependencyResolution(dep));
-        let result = this.resolveSymbol(resolved, symbol);
-        if (result.symbol != null) {
-          return result;
-        }
-      }
-    }
-
-    return {asset, exportSymbol: symbol, symbol: identifier};
   }
 }

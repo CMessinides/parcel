@@ -4,18 +4,19 @@ import type {ParcelOptions, Blob, FilePath} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type {Bundle as InternalBundle} from './types';
 import type ParcelConfig from './ParcelConfig';
-import type InternalBundleGraph from './BundleGraph';
 
 import {Readable} from 'stream';
-import invariant from 'assert';
-import * as fs from '@parcel/fs';
 import {urlJoin} from '@parcel/utils';
-import {NamedBundle} from './public/Bundle';
+import * as fs from '@parcel/fs';
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
+
+import {NamedBundle} from './public/Bundle';
+import InternalBundleGraph from './BundleGraph';
 import {report} from './ReporterRunner';
-import {BundleGraph} from './public/BundleGraph';
+import BundleGraph from './public/BundleGraph';
 
 type Opts = {|
   config: ParcelConfig,
@@ -39,6 +40,7 @@ export default class PackagerRunner {
     let packaged = await this.package(bundle, bundleGraph);
     let {contents, map} = await this.optimize(
       bundle,
+      bundleGraph,
       packaged.contents,
       packaged.map
     );
@@ -55,8 +57,9 @@ export default class PackagerRunner {
     let options = nullthrows(bundle.target).env.isBrowser()
       ? undefined
       : {
-          mode: (await fs.stat(bundle.assetGraph.getEntryAssets()[0].filePath))
-            .mode
+          mode: (await fs.stat(
+            new NamedBundle(bundle, bundleGraph).getEntryAssets()[0].filePath
+          )).mode
         };
 
     let size;
@@ -123,7 +126,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph
   ): Promise<{|contents: Blob, map?: ?SourceMap|}> {
-    let bundle = new NamedBundle(internalBundle);
+    let bundle = new NamedBundle(internalBundle, bundleGraph);
     report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -143,7 +146,7 @@ export default class PackagerRunner {
         typeof packaged.contents === 'string'
           ? replaceReferences(
               packaged.contents,
-              generateDepToBundlePath(internalBundle)
+              generateDepToBundlePath(internalBundle, bundleGraph)
             )
           : packaged.contents,
       map: packaged.map
@@ -152,10 +155,11 @@ export default class PackagerRunner {
 
   async optimize(
     internalBundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
     contents: Blob,
     map?: ?SourceMap
   ): Promise<{|contents: Blob, map?: ?SourceMap|}> {
-    let bundle = new NamedBundle(internalBundle);
+    let bundle = new NamedBundle(internalBundle, bundleGraph);
     let optimizers = await this.config.getOptimizers(bundle.filePath);
     if (!optimizers.length) {
       return {contents, map};
@@ -191,10 +195,11 @@ export default class PackagerRunner {
  * in a "raw" loader or any transformed dependencies referred to by url).
  */
 function generateDepToBundlePath(
-  bundle: InternalBundle
+  bundle: InternalBundle,
+  bundleGraph: InternalBundleGraph
 ): Map<string, FilePath> {
   let depToBundlePath: Map<string, FilePath> = new Map();
-  bundle.assetGraph.traverse(node => {
+  bundleGraph.traverseBundle(bundle, node => {
     if (node.type !== 'dependency') {
       return;
     }
@@ -204,23 +209,25 @@ function generateDepToBundlePath(
       return;
     }
 
-    let [bundleGroupNode] = bundle.assetGraph.getNodesConnectedFrom(node);
+    let [bundleGroupNode] = bundleGraph._graph.getNodesConnectedFrom(node);
     invariant(bundleGroupNode && bundleGroupNode.type === 'bundle_group');
 
-    let [entryBundleNode] = bundle.assetGraph.getNodesConnectedFrom(
-      bundleGroupNode
+    let [entryBundleNode] = bundleGraph._graph.getNodesConnectedFrom(
+      bundleGroupNode,
+      'bundle'
     );
-    invariant(entryBundleNode && entryBundleNode.type === 'bundle_reference');
+    invariant(entryBundleNode && entryBundleNode.type === 'bundle');
 
-    let entryBundle = entryBundleNode.value;
+    let referencedBundle = entryBundleNode.value;
     depToBundlePath.set(
       dep.id,
       urlJoin(
-        nullthrows(entryBundle.target).publicUrl ?? '/',
-        nullthrows(entryBundle.name)
+        nullthrows(referencedBundle.target).publicUrl ?? '/',
+        nullthrows(referencedBundle.name)
       )
     );
   });
+
   return depToBundlePath;
 }
 

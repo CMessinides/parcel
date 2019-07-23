@@ -40,7 +40,8 @@ describe('postcss', () => {
       path.join(__dirname, '/integration/postcss-plugins/index2.js')
     );
 
-    let [run1, run2] = await Promise.all([run(b), run(c)]);
+    let run1 = await run(b);
+    let run2 = await run(c);
 
     assert.equal(run1(), run2());
   });

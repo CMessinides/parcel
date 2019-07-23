@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import invariant from 'assert';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
@@ -43,30 +44,39 @@ export default new Packager({
     let map = new SourceMap();
     let lineOffset = countLines(PRELUDE);
 
+    let stubsWritten = new Set();
     bundle.traverse(node => {
-      if (node.type !== 'asset' && node.type !== 'asset_reference') {
-        return;
-      }
-
-      let asset = node.value;
-      if (node.type === 'asset_reference' && asset.type === 'js') {
-        // if this is a reference to another javascript asset, we should not include
-        // its output, as its contents should already be loaded.
-        return;
-      }
-
       let wrapped = first ? '' : ',';
-      if (node.type === 'asset_reference') {
-        wrapped +=
-          JSON.stringify(asset.id) +
-          ':[function(require,module,exports) {},{}]';
-      } else {
+
+      if (node.type === 'dependency') {
+        let resolution = bundleGraph.getDependencyResolution(node.value);
+        if (
+          resolution &&
+          resolution.type !== 'js' &&
+          !stubsWritten.has(resolution.id)
+        ) {
+          // if this is a reference to another javascript asset, we should not include
+          // its output, as its contents should already be loaded.
+          invariant(!bundle.hasAsset(resolution));
+          wrapped += JSON.stringify(resolution.id) + ':[function() {},{}]';
+        } else {
+          return;
+        }
+      }
+
+      if (node.type === 'asset') {
+        let asset = node.value;
+        invariant(
+          asset.type === 'js',
+          'all assets in js bundle must be js assets'
+        );
+
         let deps = {};
         let dependencies = bundle.getDependencies(asset);
         for (let dep of dependencies) {
-          let resolved = bundle.getDependencyResolution(dep);
-          if (resolved) {
-            deps[dep.moduleSpecifier] = resolved.id;
+          let resolution = bundle.getDependencyResolution(dep);
+          if (resolution) {
+            deps[dep.moduleSpecifier] = resolution.id;
           }
         }
 
@@ -92,16 +102,11 @@ export default new Packager({
           map.addMap(assetMap, lineOffset);
           lineOffset += countLines(output) + 1;
         }
-
         i++;
       }
 
       assets += wrapped;
       first = false;
-
-      if (node.type === 'asset_reference') {
-        return;
-      }
     });
 
     let entryAsset = bundle.getEntryAssets()[0];

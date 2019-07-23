@@ -7,6 +7,8 @@ import assert from 'assert';
 import crypto from 'crypto';
 import path from 'path';
 
+import nullthrows from 'nullthrows';
+
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 
 export default new Namer({
@@ -20,7 +22,10 @@ export default new Namer({
     }
 
     let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(
-      bundleGraph.getBundleGroupsContainingBundle(bundle)[0]
+      nullthrows(
+        bundleGraph.getBundleGroupsContainingBundle(bundle)[0],
+        `bundle was ${bundle.id}`
+      )
     );
 
     if (bundle.isEntry) {
@@ -30,7 +35,10 @@ export default new Namer({
       assert(
         entryBundlesOfType.length === 1,
         // Otherwise, we'd end up naming two bundles the same thing.
-        'Bundle group cannot have more than one entry bundle of the same type'
+        'Bundle group cannot have more than one entry bundle of the same type ' +
+          bundle.id +
+          ' bg ' +
+          entryBundlesOfType.map(b => b.id).join(':')
       );
     }
 

@@ -228,10 +228,9 @@ export interface Dependency {
   env: Environment;
   meta: Meta;
   target: ?Target;
+  sourceAssetId: ?string;
+  sourcePath: ?string;
   symbols: Map<Symbol, Symbol>;
-
-  // TODO: get this from graph instead of storing them on dependencies
-  sourcePath: ?FilePath;
 
   merge(other: Dependency): void;
 }
@@ -372,28 +371,56 @@ export type GraphTraversalCallback<TNode, TContext> = (
   actions: TraversalActions
 ) => ?TContext;
 
-// Not a directly exported interface.
-interface AssetGraphLike {
-  getDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): ?Asset;
-  getIncomingDependencies(asset: Asset): Array<Dependency>;
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
+export type BundleTraversable =
+  | {|type: 'asset', value: Asset|}
+  | {|type: 'dependency', value: Dependency|};
+
+export type BundlerBundleGraphTraversable =
+  | {|+type: 'asset', value: Asset|}
+  | {|+type: 'dependency', value: Dependency|};
+
+export interface BundlerBundleGraph {
+  addBundleToBundleGroup(Bundle, BundleGroup): void;
+  addAssetToBundle(Asset, Bundle): void;
+  createAssetReference(Dependency, Asset): void;
+  createBundle(
+    | {|
+        id?: string,
+        entryAsset: Asset,
+        target: Target,
+        isEntry?: ?boolean,
+        type?: ?string,
+        env?: ?Environment
+      |}
+    | {|
+        id: string,
+        entryAsset?: Asset,
+        target: Target,
+        isEntry?: ?boolean,
+        type: string,
+        env: Environment
+      |}
+  ): Bundle;
+  createBundleGroup(Dependency, Target): BundleGroup;
+  getDependencyAssets(Dependency): Array<Asset>;
+  traverse<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>
+  ): ?TContext;
 }
 
-export type BundleTraversable =
-  | {|+type: 'asset', value: Asset|}
-  | {|+type: 'asset_reference', value: Asset|}
-  | {|+type: 'dependency', value: Dependency|};
-
-export type MainAssetGraphTraversable =
-  | {|+type: 'asset', value: Asset|}
-  | {|+type: 'dependency', value: Dependency|};
-
-// Always read-only.
-export interface MainAssetGraph extends AssetGraphLike {
-  createBundle(asset: Asset): MutableBundle;
-  traverse<TContext>(
-    visit: GraphVisitor<MainAssetGraphTraversable, TContext>
+export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
+  addAssetTreeToBundle(Asset, Bundle): void;
+  findBundlesWithAsset(Asset): Array<Bundle>;
+  getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
+  getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
+  getDependenciesInBundle(Bundle, Asset): Array<Dependency>;
+  getTotalSize(Asset): number;
+  isAssetInAncestorBundles(Bundle, Asset): boolean;
+  removeAssetFromBundle(Asset, Bundle): void;
+  removeAssetTreeFromBundle(Asset, Bundle): void;
+  traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
+  traverseContents<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>
   ): ?TContext;
 }
 
@@ -403,28 +430,25 @@ export type SymbolResolution = {|
   symbol: void | Symbol
 |};
 
-export interface Bundle extends AssetGraphLike {
+export interface Bundle {
   +id: string;
   +type: string;
   +env: Environment;
   +isEntry: ?boolean;
-  +target: ?Target;
+  +target: Target;
   +filePath: ?FilePath;
   +name: ?string;
   +stats: Stats;
+  getDependencies(asset: Asset): Array<Dependency>;
+  getDependencyResolution(dependency: Dependency): ?Asset;
   getEntryAssets(): Array<Asset>;
-  getTotalSize(asset?: Asset): number;
+  hasAsset(Asset): boolean;
   hasChildBundles(): boolean;
+  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>
   ): ?TContext;
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
-}
-
-export interface MutableBundle extends Bundle {
-  isEntry: ?boolean;
-  merge(Bundle): void;
-  removeAsset(Asset): void;
 }
 
 export interface NamedBundle extends Bundle {
@@ -434,39 +458,32 @@ export interface NamedBundle extends Bundle {
 
 export type BundleGroup = {
   dependency: Dependency,
-  target: ?Target,
+  target: Target,
   entryAssetId: string
 };
 
 export interface BundleGraph {
-  findBundlesWithAsset(asset: Asset): Array<Bundle>;
+  getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
   getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
-  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
+  getDependencies(asset: Asset): Array<Dependency>;
+  getIncomingDependencies(asset: Asset): Array<Dependency>;
+  getDependencyResolution(dependency: Dependency): ?Asset;
+  isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext;
   isAssetReferenced(asset: Asset): boolean;
 }
 
-export interface MutableBundleGraph {
-  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
-  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
-  findBundlesWithAsset(asset: Asset): Array<MutableBundle>;
-  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<MutableBundle>;
-  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
-  traverseBundles<TContext>(
-    visit: GraphTraversalCallback<MutableBundle, TContext>
-  ): ?TContext;
-}
-
 export type Bundler = {|
   bundle({
-    assetGraph: MainAssetGraph,
-    bundleGraph: MutableBundleGraph,
+    bundleGraph: BundlerBundleGraph,
+    options: ParcelOptions
+  }): Async<void>,
+  optimize({
+    bundleGraph: BundlerOptimizeBundleGraph,
     options: ParcelOptions
   }): Async<void>
 |};
@@ -587,7 +604,6 @@ export type BuildProgressEvent =
 
 export type BuildSuccessEvent = {|
   type: 'buildSuccess',
-  assetGraph: MainAssetGraph,
   bundleGraph: BundleGraph,
   buildTime: number,
   changedAssets: Map<string, Asset>

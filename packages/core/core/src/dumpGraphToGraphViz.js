@@ -19,6 +19,12 @@ const COLORS = {
   default: 'white'
 };
 
+const TYPE_COLORS = {
+  bundle: 'blue',
+  contains: 'grey',
+  references: 'red'
+};
+
 export default async function dumpGraphToGraphViz(
   // $FlowFixMe
   graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
@@ -49,8 +55,25 @@ export default async function dumpGraphToGraphViz(
       if (node.value.isOptional) parts.push('optional');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-    } else if (node.type === 'asset' || node.type === 'asset_reference') {
-      label += path.basename(node.value.filePath) + '#' + node.value.type;
+      label += ` [${node.value.id}]`;
+    } else if (node.type === 'asset') {
+      label +=
+        node.value.id +
+        '\\' +
+        path.basename(node.value.filePath) +
+        '#' +
+        node.value.type +
+        ` (${getEnvDescription(node.value.env)})`;
+    } else if (node.type === 'asset_reference') {
+      label +=
+        node.value.bundle.id +
+        ':' +
+        path.basename(node.value.asset.filePath) +
+        '#' +
+        node.value.asset.type +
+        ` (${getEnvDescription(node.value.asset.env)})`;
+    } else if (node.type === 'asset_group') {
+      label += `(${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);
     } else if (node.type === 'transformer_request') {
@@ -58,20 +81,21 @@ export default async function dumpGraphToGraphViz(
         path.basename(node.value.filePath) +
         ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'bundle') {
-      let rootAssets = node.value.assetGraph.getNodesConnectedFrom(
-        nullthrows(node.value.assetGraph.getRootNode())
-      );
-      label += rootAssets
-        .map(asset => {
-          invariant(asset.type === 'asset' || asset.type === 'asset_reference');
-          let parts = asset.value.filePath.split(path.sep);
-          let index = parts.lastIndexOf('node_modules');
-          if (index >= 0) {
-            return parts[index + 1];
-          }
-          return path.basename(asset.value.filePath);
-        })
-        .join(', ');
+      label += node.id;
+      // let rootAssets = node.value.assetGraph.getNodesConnectedFrom(
+      //   nullthrows(node.value.assetGraph.getRootNode())
+      // );
+      // label += rootAssets
+      //   .map(asset => {
+      //     invariant(asset.type === 'asset' || asset.type === 'asset_reference');
+      //     let parts = asset.value.filePath.split(path.sep);
+      //     let index = parts.lastIndexOf('node_modules');
+      //     if (index >= 0) {
+      //       return parts[index + 1];
+      //     }
+      //     return path.basename(asset.value.filePath);
+      //   })
+      //   .join(', ');
     } else {
       // label += node.id;
       label = node.type;
@@ -79,22 +103,21 @@ export default async function dumpGraphToGraphViz(
     n.set('label', label);
   }
   for (let edge of graph.getAllEdges()) {
-    g.addEdge(edge.from, edge.to);
+    let gEdge = g.addEdge(edge.from, edge.to);
+    let color = edge.type != null ? TYPE_COLORS[edge.type] : null;
+    if (color != null) {
+      gEdge.set('color', color);
+    }
   }
   let tmp = tempy.file({name: `${name}.png`});
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
-  if (graph instanceof BundleGraph) {
-    graph.traverseBundles(bundle => {
-      dumpGraphToGraphViz(bundle.assetGraph, bundle.id);
-    });
-  }
 }
 
 function getEnvDescription(env: Environment) {
   let description = '';
-  if (env.engines.browsers) {
+  if (Array.isArray(env.engines.browsers)) {
     description = `${env.context}: ${env.engines.browsers.join(', ')}`;
   } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;

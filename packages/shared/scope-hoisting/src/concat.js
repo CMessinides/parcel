@@ -80,9 +80,9 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
         if (t.isExpressionStatement(statement)) {
-          for (let depAsset of findRequires(bundle, asset, statement)) {
-            if (depAsset && !statementIndices.has(depAsset.id)) {
-              statementIndices.set(depAsset.id, i);
+          for (let resolution of findRequires(bundle, asset, statement)) {
+            if (resolution && !statementIndices.has(resolution.id)) {
+              statementIndices.set(resolution.id, i);
             }
           }
         }
@@ -180,8 +180,8 @@ function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
   bundle.traverseAssets(asset => {
     for (let dep of bundle.getDependencies(asset)) {
-      let resolvedAsset = bundle.getDependencyResolution(dep);
-      if (!resolvedAsset) {
+      let resolution = bundle.getDependencyResolution(dep);
+      if (!resolution) {
         continue;
       }
 
@@ -191,12 +191,12 @@ function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
         }
 
         if (symbol === '*') {
-          for (let symbol of resolvedAsset.symbols.keys()) {
-            markUsed(resolvedAsset, symbol);
+          for (let symbol of resolution.symbols.keys()) {
+            markUsed(resolution, symbol);
           }
         }
 
-        markUsed(resolvedAsset, symbol);
+        markUsed(resolution, symbol);
       }
     }
   });
@@ -227,7 +227,7 @@ function shouldExcludeAsset(
   );
 }
 
-function findRequires(bundle: Bundle, asset: Asset, ast) {
+function findRequires(bundle: Bundle, asset: Asset, ast): Array<Asset> {
   let result = [];
   walk.simple(ast, {
     CallExpression(node) {
@@ -243,7 +243,7 @@ function findRequires(bundle: Bundle, asset: Asset, ast) {
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(bundle.getDependencyResolution(dep));
+        result.push(nullthrows(bundle.getDependencyResolution(dep)));
       }
     }
   });

@@ -4,10 +4,10 @@ import {registerSerializableClass} from '@parcel/utils';
 import Asset from './Asset';
 import AssetGraph from './AssetGraph';
 import BundleGraph from './BundleGraph';
+import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import Dependency from './Dependency';
 import Environment from './Environment';
-import {BundleReference} from './public/BundleGraph';
 // $FlowFixMe this is untyped
 import packageJson from '../package.json';
 
@@ -26,10 +26,10 @@ export default function registerCoreWithSerializer() {
     Asset,
     AssetGraph,
     BundleGraph,
+    Graph,
     ParcelConfig,
     Dependency,
-    Environment,
-    BundleReference
+    Environment
   ]) {
     register(ctor);
   }

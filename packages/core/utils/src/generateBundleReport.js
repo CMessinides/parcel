@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Asset, BundleGraph} from '@parcel/types';
+import type {Asset, Bundle} from '@parcel/types';
 import nullthrows from 'nullthrows';
 
 export type BundleReport = {|
@@ -14,14 +14,12 @@ export type BundleReport = {|
 |};
 
 export default function generateBundleReport(
-  bundleGraph: BundleGraph,
-  largestAssetCount: number = 10
+  unsortedBundles: Array<Bundle>,
+  largestAssetCount: number = 100
 ): BundleReport {
-  let bundles = [];
-  bundleGraph.traverseBundles(bundle => {
-    bundles.push(bundle);
-  });
-  bundles.sort((a, b) => b.stats.size - a.stats.size);
+  let bundles = unsortedBundles
+    .slice()
+    .sort((a, b) => b.stats.size - a.stats.size);
 
   return {
     bundles: bundles.map(bundle => {
