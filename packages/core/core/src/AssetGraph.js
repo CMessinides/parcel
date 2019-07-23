@@ -138,13 +138,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       let assets = this.getNodesConnectedTo(depNode);
       let symbols = invertMap(dependency.symbols);
       let firstAsset = assets[0];
-      invariant(
-        firstAsset.type === 'asset' || firstAsset.type === 'asset_reference'
-      );
-      let resolvedAsset =
-        firstAsset.type === 'asset_reference'
-          ? firstAsset.value.asset
-          : firstAsset.value;
+      invariant(firstAsset.type === 'asset');
+      let resolvedAsset = firstAsset.value;
       let deps = this.getIncomingDependencies(resolvedAsset);
       defer = deps.every(
         d =>
@@ -189,29 +184,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       invariant(node.type === 'dependency');
       return node.value;
     });
-  }
-
-  getDependencyResolution(dep: IDependency): ?Asset {
-    let depNode = this.getNode(dep.id);
-    if (!depNode) {
-      return null;
-    }
-
-    let res: ?Asset = null;
-    this.traverse((node, ctx, traversal) => {
-      // Prefer real assets when resolving dependencies, but use the first
-      // asset reference in absence of a real one.
-      if (node.type === 'asset_reference' && !res) {
-        res = node.value;
-      }
-
-      if (node.type === 'asset') {
-        res = node.value;
-        traversal.stop();
-      }
-    }, depNode);
-
-    return res;
   }
 
   getIncomingDependencies(asset: Asset): Array<IDependency> {

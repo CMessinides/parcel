@@ -64,14 +64,6 @@ export default async function dumpGraphToGraphViz(
         '#' +
         node.value.type +
         ` (${getEnvDescription(node.value.env)})`;
-    } else if (node.type === 'asset_reference') {
-      label +=
-        node.value.bundle.id +
-        ':' +
-        path.basename(node.value.asset.filePath) +
-        '#' +
-        node.value.asset.type +
-        ` (${getEnvDescription(node.value.asset.env)})`;
     } else if (node.type === 'asset_group') {
       label += `(${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'file') {
@@ -82,20 +74,6 @@ export default async function dumpGraphToGraphViz(
         ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'bundle') {
       label += node.id;
-      // let rootAssets = node.value.assetGraph.getNodesConnectedFrom(
-      //   nullthrows(node.value.assetGraph.getRootNode())
-      // );
-      // label += rootAssets
-      //   .map(asset => {
-      //     invariant(asset.type === 'asset' || asset.type === 'asset_reference');
-      //     let parts = asset.value.filePath.split(path.sep);
-      //     let index = parts.lastIndexOf('node_modules');
-      //     if (index >= 0) {
-      //       return parts[index + 1];
-      //     }
-      //     return path.basename(asset.value.filePath);
-      //   })
-      //   .join(', ');
     } else {
       // label += node.id;
       label = node.type;

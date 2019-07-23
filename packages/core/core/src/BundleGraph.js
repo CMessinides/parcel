@@ -25,7 +25,6 @@ type BundleGraphEdgeTypes = 'contains' | 'bundle' | 'references';
 
 export default class BundleGraph {
   _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>;
-  hash: string;
 
   constructor(graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>) {
     this._graph = graph;
@@ -345,7 +344,6 @@ export default class BundleGraph {
       hash.update(asset.outputHash);
     });
 
-    this.hash = hash.digest('hex');
-    return this.hash;
+    return hash.digest('hex');
   }
 }

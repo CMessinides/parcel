@@ -264,7 +264,6 @@ function bundlerAssetGraphFromAssetGraph(
     if (node.type === 'asset_group') {
       assetGroupIds.add(node.id);
     } else {
-      invariant(node.type !== 'asset_reference');
       graph.addNode(node);
     }
   });
