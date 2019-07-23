@@ -128,6 +128,10 @@ export class Bundle implements IBundle {
   hasChildBundles() {
     return this.#bundleGraph.hasChildBundles(this.#bundle);
   }
+
+  getHash() {
+    return this.#bundleGraph.getHash(this.#bundle);
+  }
 }
 
 export class NamedBundle extends Bundle implements INamedBundle {

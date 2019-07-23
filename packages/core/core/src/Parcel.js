@@ -23,7 +23,6 @@ import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import clone from 'clone';
 import watcher from '@parcel/watcher';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
@@ -58,7 +57,7 @@ export default class Parcel {
   #watcherCount = 0; // number
 
   constructor(options: InitialParcelOptions) {
-    this.#initialOptions = clone(options);
+    this.#initialOptions = options;
   }
 
   async init(): Promise<void> {
@@ -70,10 +69,10 @@ export default class Parcel {
       this.#initialOptions
     );
     this.#resolvedOptions = resolvedOptions;
-    await createCacheDir(resolvedOptions.cacheDir);
+    await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
 
     let {config} = await loadParcelConfig(
-      path.join(process.cwd(), 'index'),
+      path.join(resolvedOptions.inputFS.cwd(), 'index'),
       resolvedOptions
     );
     this.#config = config;
@@ -88,7 +87,8 @@ export default class Parcel {
       options: resolvedOptions
     });
 
-    this.#assetGraphBuilder = new AssetGraphBuilder({
+    this.#assetGraphBuilder = new AssetGraphBuilder();
+    await this.#assetGraphBuilder.init({
       options: resolvedOptions,
       config,
       entries: resolvedOptions.entries,
@@ -106,13 +106,18 @@ export default class Parcel {
   }
 
   async run(): Promise<IBundleGraph> {
+    let startTime = Date.now();
     if (!this.#initialized) {
       await this.init();
     }
 
-    let result = await this.build();
+    let result = await this.build(startTime);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
+    if (result.type === 'buildSuccess') {
+      await this.#assetGraphBuilder.writeToCache();
+    }
+
     if (resolvedOptions.killWorkers !== false) {
       await this.#farm.end();
     }
@@ -172,13 +177,12 @@ export default class Parcel {
     };
   }
 
-  async build(): Promise<BuildEvent> {
+  async build(startTime: number = Date.now()): Promise<BuildEvent> {
     try {
       this.#reporterRunner.report({
         type: 'buildStart'
       });
 
-      let startTime = Date.now();
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
@@ -264,11 +268,7 @@ export default class Parcel {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
-    let targetDirs = resolvedOptions.targets.map(target => target.distDir);
-    let vcsDirs = ['.git', '.hg'].map(dir =>
-      path.join(resolvedOptions.projectRoot, dir)
-    );
-    let ignore = [resolvedOptions.cacheDir, ...targetDirs, ...vcsDirs];
+    let opts = this.#assetGraphBuilder.getWatcherOptions();
 
     return watcher.subscribe(
       resolvedOptions.projectRoot,
@@ -292,7 +292,7 @@ export default class Parcel {
           }
         }
       },
-      {ignore}
+      opts
     );
   }
 }

@@ -8,6 +8,8 @@ import Graph from './Graph';
 import ParcelConfig from './ParcelConfig';
 import Dependency from './Dependency';
 import Environment from './Environment';
+import RequestGraph from './RequestGraph';
+import Config from './public/Config';
 // $FlowFixMe this is untyped
 import packageJson from '../package.json';
 
@@ -29,7 +31,9 @@ export default function registerCoreWithSerializer() {
     Graph,
     ParcelConfig,
     Dependency,
-    Environment
+    Environment,
+    RequestGraph,
+    Config
   ]) {
     register(ctor);
   }

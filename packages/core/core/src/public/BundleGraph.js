@@ -61,17 +61,13 @@ export default class BundleGraph implements IBundleGraph {
     return this.#graph.getDependencies(assetToInternalAsset(asset));
   }
 
-  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): ?IBundle {
+  isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
     let internalNode = this.#graph._graph.getNode(bundle.id);
     invariant(internalNode != null && internalNode.type === 'bundle');
-    let firstAncestor = this.#graph.isAssetInAncestorBundles(
+    return this.#graph.isAssetInAncestorBundles(
       internalNode.value,
       assetToInternalAsset(asset)
     );
-
-    if (firstAncestor) {
-      return new Bundle(firstAncestor, this.#graph);
-    }
   }
 
   isAssetReferenced(asset: IAsset): boolean {

@@ -24,8 +24,10 @@ import {
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
-import {normalizeSeparators, unique} from '@parcel/utils';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
+import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
+import Cache from '@parcel/cache';
+import {localResolve} from '@parcel/local-require';
 
 type Opts = {|
   options: ParcelOptions,
@@ -35,10 +37,12 @@ type Opts = {|
 export default class BundlerRunner {
   options: ParcelOptions;
   config: ParcelConfig;
+  cache: Cache;
 
   constructor(opts: Opts) {
     this.options = opts.options;
     this.config = opts.config;
+    this.cache = new Cache(this.options.outputFS, this.options.cacheDir);
   }
 
   async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
@@ -46,6 +50,15 @@ export default class BundlerRunner {
       type: 'buildProgress',
       phase: 'bundling'
     });
+
+    let cacheKey;
+    if (this.options.cache !== false) {
+      cacheKey = await this.getCacheKey(graph);
+      let cachedBundleGraph = await this.cache.get(cacheKey);
+      if (cachedBundleGraph) {
+        return cachedBundleGraph;
+      }
+    }
 
     let bundler = await this.config.getBundler();
 
@@ -58,7 +71,6 @@ export default class BundlerRunner {
       options: this.options
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
-    // await dumpGraphToGraphViz(bundleGraph, 'bundle_graph');
     for (let bundle of internalBundleGraph.getBundles()) {
       summarizeBundle(bundle, internalBundleGraph);
     }
@@ -72,7 +84,26 @@ export default class BundlerRunner {
     await this.applyRuntimes(internalBundleGraph);
     await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
+    if (cacheKey != null) {
+      await this.cache.set(cacheKey, internalBundleGraph);
+    }
+
     return internalBundleGraph;
+  }
+
+  async getCacheKey(assetGraph: AssetGraph) {
+    let bundler = this.config.bundler;
+    let [, resolvedPkg] = await localResolve(
+      `${bundler}/package.json`,
+      `${this.config.filePath}/index` // TODO: is this right?
+    );
+
+    let version = nullthrows(resolvedPkg).version;
+    return md5FromObject({
+      bundler,
+      version,
+      hash: assetGraph.getHash()
+    });
   }
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
@@ -154,7 +185,8 @@ export default class BundlerRunner {
     runtimeAssets: Array<RuntimeAsset>
   ) {
     for (let {code, filePath, dependency} of runtimeAssets) {
-      let builder = new AssetGraphBuilder({
+      let builder = new AssetGraphBuilder();
+      await builder.init({
         options: this.options,
         config: this.config,
         assetRequest: {

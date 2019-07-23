@@ -15,6 +15,7 @@ import type Asset from './Asset';
 import type Graph from './Graph';
 
 import invariant from 'assert';
+import crypto from 'crypto';
 import nullthrows from 'nullthrows';
 
 import {getBundleGroupId} from './utils';
@@ -24,6 +25,7 @@ type BundleGraphEdgeTypes = 'contains' | 'bundle' | 'references';
 
 export default class BundleGraph {
   _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>;
+  hash: string;
 
   constructor(graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>) {
     this._graph = graph;
@@ -334,5 +336,16 @@ export default class BundleGraph {
     }
 
     return {asset, exportSymbol: symbol, symbol: identifier};
+  }
+
+  getHash(bundle: Bundle): string {
+    let hash = crypto.createHash('md5');
+    // TODO: sort??
+    this.traverseAssets(bundle, asset => {
+      hash.update(asset.outputHash);
+    });
+
+    this.hash = hash.digest('hex');
+    return this.hash;
   }
 }

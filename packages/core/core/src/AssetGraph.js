@@ -14,6 +14,7 @@ import type Asset from './Asset';
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
 import type {AssetGraphNode, AssetGroup, DependencyNode} from './types';
+import crypto from 'crypto';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
@@ -25,6 +26,11 @@ type InitOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
   assetGroup?: AssetGroup
+|};
+
+type SerializedAssetGraph = {|
+  ...GraphOpts<AssetGraphNode>,
+  hash: ?string
 |};
 
 const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
@@ -51,9 +57,24 @@ const nodeFromAsset = (asset: Asset) => ({
 export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
+  hash: ?string;
 
-  constructor({onNodeAdded, onNodeRemoved, ...graphOpts}: AssetGraphOpts = {}) {
-    super(graphOpts);
+  // $FlowFixMe
+  static deserialize(opts: SerializedAssetGraph): AssetGraph {
+    let res = new AssetGraph(opts);
+    res.hash = opts.hash;
+    return res;
+  }
+
+  // $FlowFixMe
+  serialize(): SerializedAssetGraph {
+    return {
+      ...super.serialize(),
+      hash: this.hash
+    };
+  }
+
+  initOptions({onNodeAdded, onNodeRemoved}: AssetGraphOpts = {}) {
     this.onNodeAdded = onNodeAdded;
     this.onNodeRemoved = onNodeRemoved;
   }
@@ -91,11 +112,13 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   }
 
   addNode(node: AssetGraphNode) {
+    this.hash = null;
     this.onNodeAdded && this.onNodeAdded(node);
     return super.addNode(node);
   }
 
   removeNode(node: AssetGraphNode) {
+    this.hash = null;
     this.onNodeRemoved && this.onNodeRemoved(node);
     return super.removeNode(node);
   }
@@ -224,5 +247,20 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     });
 
     return entries;
+  }
+
+  getHash() {
+    if (this.hash != null) {
+      return this.hash;
+    }
+
+    let hash = crypto.createHash('md5');
+    // TODO: sort??
+    this.traverseAssets(asset => {
+      hash.update(asset.outputHash);
+    });
+
+    this.hash = hash.digest('hex');
+    return this.hash;
   }
 }
