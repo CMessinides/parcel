@@ -59,7 +59,7 @@ export default new Reporter({
               type: 'buildSuccess',
               buildTime: event.buildTime,
               bundles: event.bundleGraph
-                ? generateBundleReport(event.bundleGraph.getBundles()).bundles
+                ? generateBundleReport(event.bundleGraph).bundles
                 : undefined
             },
             logLevelFilter

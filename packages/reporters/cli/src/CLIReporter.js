@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {
-  Bundle,
+  BundleGraph,
   LogEvent,
   ParcelOptions,
   ProgressLogEvent,
@@ -21,13 +21,13 @@ import UI from './UI';
 type State = {|
   progress: ?ProgressLogEvent,
   logs: Array<LogEvent>,
-  bundles: ?Array<Bundle>
+  bundleGraph: ?BundleGraph
 |};
 
 let state: State = {
   progress: null,
   logs: [],
-  bundles: null
+  bundleGraph: null
 };
 let rerender: RerenderFunc;
 
@@ -59,7 +59,7 @@ function reducer(
       return {
         ...state,
         logs: [],
-        bundles: null
+        bundleGraph: null
       };
 
     case 'buildProgress': {
@@ -91,7 +91,7 @@ function reducer(
       return {
         ...state,
         progress: null,
-        bundles: event.bundleGraph.getBundles(),
+        bundleGraph: event.bundleGraph,
         logs: [
           ...state.logs,
           {

@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type {
-  Bundle,
+  BundleGraph,
   LogEvent,
   ParcelOptions,
   ProgressLogEvent
@@ -13,13 +13,13 @@ import {Log, Progress} from './Log';
 import BundleReport from './BundleReport';
 
 type Props = {|
-  bundles: ?Array<Bundle>,
+  bundleGraph: ?BundleGraph,
   logs: Array<LogEvent>,
   options: ParcelOptions,
   progress: ?ProgressLogEvent
 |};
 
-export default function UI({logs, progress, bundles, options}: Props) {
+export default function UI({logs, progress, bundleGraph, options}: Props) {
   return (
     <Color reset>
       <div>
@@ -27,8 +27,8 @@ export default function UI({logs, progress, bundles, options}: Props) {
           <Log key={i} event={log} />
         ))}
         {progress ? <Progress event={progress} /> : null}
-        {options.mode === 'production' && bundles ? (
-          <BundleReport bundles={bundles} />
+        {options.mode === 'production' && bundleGraph ? (
+          <BundleReport bundleGraph={bundleGraph} />
         ) : null}
       </div>
     </Color>

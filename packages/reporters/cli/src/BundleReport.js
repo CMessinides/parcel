@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Bundle, FilePath} from '@parcel/types';
+import type {BundleGraph, FilePath} from '@parcel/types';
 
 import * as React from 'react';
 import filesize from 'filesize';
@@ -13,13 +13,13 @@ import {Table, Row, Cell} from './Table';
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
 
 type ReportProps = {|
-  bundles: Array<Bundle>
+  bundleGraph: BundleGraph
 |};
 
 export default function BundleReport(
   props: ReportProps
 ): React.Element<typeof Table> {
-  let {bundles} = generateBundleReport(props.bundles);
+  let {bundles} = generateBundleReport(props.bundleGraph);
 
   let rows: Array<React.Element<typeof Row>> = [<Row key="first" />];
   for (let bundle of bundles) {

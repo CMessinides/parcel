@@ -51,7 +51,7 @@ export function _report(event: ReporterEvent, options: ParcelOptions): void {
 
       writeOut(`Built in ${prettifyTime(event.buildTime)}`);
       if (options.mode === 'production') {
-        render(<BundleReport bundles={event.bundleGraph.getBundles()} />);
+        render(<BundleReport bundleGraph={event.bundleGraph} />);
       }
       break;
     case 'buildFailure':
