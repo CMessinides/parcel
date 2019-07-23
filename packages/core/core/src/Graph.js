@@ -275,84 +275,13 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     });
   }
 
-  filteredEdgeTraverse<TContext>(
-    predicate: (TNode, TNode) => boolean,
-    visit: GraphVisitor<TNode, TContext>,
-    startNode: ?TNode
-  ): ?TContext {
-    return this.dfs({
-      visit,
-      startNode,
-      getChildren: node => {
-        let toVisit = [];
-        for (let destination of this.getNodesConnectedFrom(node)) {
-          if (predicate(node, destination)) {
-            toVisit.push(destination);
-          }
-        }
-        return toVisit;
-      }
-    });
-  }
-
-  filteredEdgeTraverseAncestors<TContext>(
-    predicate: (TNode, TNode) => boolean,
-    visit: GraphVisitor<TNode, TContext>,
-    startNode: ?TNode
-  ): ?TContext {
-    return this.dfs({
-      visit,
-      startNode,
-      getChildren: node => {
-        let toVisit = [];
-        for (let destination of this.getNodesConnectedTo(node)) {
-          if (predicate(node, destination)) {
-            toVisit.push(destination);
-          }
-        }
-        return toVisit;
-      }
-    });
-  }
-
   filteredTraverse<TValue, TContext>(
     filter: (TNode, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
     startNode: ?TNode,
     type?: TEdgeType | null
   ): ?TContext {
-    return this.traverse<TContext>(
-      {
-        enter: (node, context, actions) => {
-          let enter = typeof visit === 'function' ? visit : visit.enter;
-          if (!enter) {
-            return;
-          }
-
-          let value = filter(node, actions);
-          if (value != null) {
-            return enter(value, context, actions);
-          }
-        },
-        exit: (node, context, actions) => {
-          if (typeof visit === 'function') {
-            return;
-          }
-
-          let exit = visit.exit;
-          if (!exit) {
-            return;
-          }
-
-          let value = filter(node, actions);
-          if (value != null) {
-            return exit(value, context, actions);
-          }
-        }
-      },
-      startNode,
-      type
-    );
+    return this.traverse(mapVisitor(filter, visit), startNode, type);
   }
 
   traverseAncestors<TContext>(
@@ -542,7 +471,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 }
 
 export function mapVisitor<TNode, TValue, TContext>(
-  project: TNode => ?TValue,
+  filter: (TNode, TraversalActions) => ?TValue,
   visit: GraphVisitor<TValue, TContext>
 ): GraphVisitor<TNode, TContext> {
   return {
@@ -552,7 +481,7 @@ export function mapVisitor<TNode, TValue, TContext>(
         return;
       }
 
-      let value = project(node);
+      let value = filter(node, actions);
       if (value != null) {
         return enter(value, context, actions);
       }
@@ -567,7 +496,7 @@ export function mapVisitor<TNode, TValue, TContext>(
         return;
       }
 
-      let value = project(node);
+      let value = filter(node, actions);
       if (value != null) {
         return exit(value, context, actions);
       }
